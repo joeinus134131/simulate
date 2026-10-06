@@ -2,7 +2,7 @@
 ## Platform Simulasi 3D Physical AI & Robotika Kerakyatan
 
 - **Kode Proyek**: `TridiArduSim-PhysicalAI`
-- **Versi Dokumen**: 1.0.0
+- **Versi Dokumen**: 1.1.0 (revisi 4 Oktober 2026 — sinkronisasi klaim dengan kode; detail di README)
 - **Status**: Disetujui untuk Implementasi
 - **Target Branch**: `feature/physical-ai-robotics-simulation`
 - **Terkait dengan**: [RENCANA.md](file:///Users/user/Projects/simulate/docs/RENCANA.md), [INVENTARIS.md](file:///Users/user/Projects/simulate/docs/INVENTARIS.md)
@@ -65,22 +65,30 @@ Bagi mahasiswa, pelajar SMK, dan insinyur perintis dari kalangan menengah ke baw
   - Virtual 2D Planar LiDAR (Raycasting berbasis Three-Mesh-BVH 360°, 360–720 sampel per putaran).
   - Virtual 6-Axis IMU (Akselerometer 3D + Giroskop 3D dengan model noise Gauss deterministik).
 
+> **Status implementasi (5 Oktober 2026):** RGB-D, LiDAR planar, dan IMU enam sumbu dihitung pada thread renderer UI. Snapshot terbaru diteruskan ke simulation worker saat signature frame berubah; sequence RGB-D menjaga capture baru yang terjadi pada timestamp sim-time sama. Sketch dapat membaca numerik lewat shim sensor. Depth bersumber dari pass GPU 24-bit yang diekspansi ke Float32; LiDAR memakai Three.js tanpa BVH; IMU menghitung specific force/gyro dari pose kinematik dengan noise Gaussian deterministik. Python V-SBC dan bridge IMU MPU-6050 I2C tersedia; belum ada rigid-body IMU, V4L2, atau uji browser end-to-end sensor. Async AI Gateway mengirim frame terpilih/action chunk joint; panel ONNX lokal menjalankan klasifikasi Float32 RGB dengan backend WebGPU/WASM. Deteksi objek, model khusus dan uji browser sensor/inference tetap target lanjutan.
+
 ### 4.2 Prioritas P1 (Physical AI Hybrid & Advanced Electronics - Milestone 2)
 - **Hybrid AI Inference Gateway (Demokratisasi Komputasi)**:
   - In-Browser Edge Inference: Integrasi **ONNX Runtime Web** dengan akselerasi WebGPU/WebAssembly untuk model klasifikasi/deteksi objek ringan (MobileNetV4, YOLOv8-nano INT8).
   - Zero-Cost Cloud Offloading: Konektor WebSocket/WebRTC 1-klik menuju **Google Colab / Kaggle Notebook** (free GPU T4/P100), memungkinkan eksekusi Vision-Language-Action (VLA) atau Reinforcement Learning di cloud sementara dunia 3D berjalan di browser lokal.
+
+> **Status implementasi (5 Oktober 2026):** cloud gateway tahap awal tersedia melalui panel WebSocket `wss://` pada 5/10 Hz. Frame RGB JPEG maksimum 320×240 dan posisi joint robot terpilih dikirim dengan protocol v1; action chunk dibatasi ukuran, ID/index robot, rentang mekanis, dan durasi 50–2000 ms lalu diinterpolasi dengan sim-time. Notebook Colab starter menggunakan ngrok dan policy hold. Panel ONNX lokal mendukung model klasifikasi dengan satu input RGB Float32 NCHW/NHWC rank-4, memilih WebGPU atau fallback WASM, dan memakai preprocessing resize bilinear plus normalisasi unit/ImageNet. Deteksi objek, model-specific preprocessing/metadata, model contoh, inferensi VLA nyata, Kaggle, WebRTC, dan validasi browser/cloud tunnel masih belum tersedia/teruji. Endpoint remote belum memiliki allow-list domain atau autentikasi protokol; gunakan URL tepercaya.
 - **Simulasi Elektronika Daya & Aktuator Lanjut**:
   - Driver Motor DC H-Bridge L298N (Drop tegangan $V_{sat}$, disipasi termal, logika arah/enable).
   - Stepper Driver A4988 / DRV8825 (Microstepping 1/16 & 1/32, kalkulasi arus referensi $V_{ref}$).
   - Model Elektromekanik DC Motor (Back-EMF, resistansi kumparan, inersia rotor, torsi stall vs beban aktual).
   - Simulasi Baterai (Penurunan tegangan / *voltage sag* saat motor menarik arus puncak/stall, mencegah brownout mikrokontroler).
+
+> **Status implementasi (5 Oktober 2026):** Battery pack Li-ion 18650/LiPo 2S/alkaline 9V menjalankan model OCV/ESR, arus beban, sag, SoC, dan trip proteksi arus pelepasan yang dapat di-reset. Charger CC/CV edukasi mengisi Li-ion 1S/LiPo 2S dengan current limit, cutoff 4.2/8.4 V, tail-current termination 0.05C dengan resume di bawah 98% SoC, safety timer simulasi aktif (default 10 jam, configurable 1–24 jam), integrasi SoC, proteksi suhu edukasi, dan blok polaritas ideal. LiPo 2S menyimpan SoC per sel dan charger memberi passive balancing edukasional 50 mA ketika beda OCV sel mencapai 30 mV, dengan pembatasan arus charge berdasarkan headroom sel tertinggi. Motor DC/L298N, A4988, transient SG90, dan converter buck-boost dapat membebani node pack. Converter terpisah menyediakan rail 3.3/5/9/12 V dengan efisiensi dan batas arus kuasistatik. BOR mereset sketch jika rail Uno 5V <4.1V atau ESP32 3V3 <3.0V, lalu menahan sketch hingga rail pulih. L298N memiliki RC thermal, clamp flyback, dan shutdown/recovery; A4988 memiliki current limit kuasistatik, UVLO, OCP setpoint dan thermal shutdown. Chopper PWM cycle-accurate, proteksi polaritas fisik, proteksi overvoltage per sel, dan validasi kurva/parameter terhadap hardware rujukan masih terbuka. Nilai timer dan balancing adalah asumsi model pendidikan, bukan rekomendasi desain pack fisik.
 - **Modul Virtual Soldering & Breadboard-to-PCB Transition**:
   - Simulasi solder interaktif: transfer panas ujung solder ke pad, lelehan timah, pembentukan meniscus wetting, dan deteksi otomatis kesalahan solder (*cold joint*, *solder bridge*, *overheated PCB pad*).
 
+> **Status implementasi (5 Oktober 2026):** mode Workbench pada menu Tools menyediakan fixture empat pad pitch 2.54 mm, hover/tahan mata solder, alloy/suhu yang dapat dipilih, heuristik kapasitas termal pad, indikator cold/good/overheat, dan peringatan bridge. Model edukasi belum memodifikasi wiring/netlist; fillet visual sederhana memakai sphere geometri, bukan vertex-shader deformation. Batas validasi lihat dokumen 06.
+
 ### 4.3 Prioritas P2 (Fabrikasi & Sim-to-Real Pipeline - Milestone 3)
-- **Ekspor Desain Fungsional 3D & Fabrikasi Nyata**:
-  - Ekspor model mekanik assembly ke format **STL / STEP** siap cetak 3D di jasa cetak lokal atau printer 3D komunitas.
-  - Ekspor netlist sirkuit ke format skematik KiCad / Gerber PCB untuk pemesanan fabrikasi PCB lokal atau JLCPCB.
+- **Ekspor Desain Fungsional 3D & Fabrikasi Nyata** (scope direvisi v1.1):
+  - Ekspor model mekanik assembly ke format **STL** siap cetak 3D di jasa cetak lokal atau printer 3D komunitas. **Ekspor STEP (CAD parametrik) DITUNDA** — di luar kemampuan tooling three.js (lihat doc 06 §6.1).
+  - Ekspor **netlist + BOM** untuk input manual ke KiCad. **Ekspor Gerber DITUNDA**: breadboard→PCB membutuhkan engine layout PCB (rute jalur, pad, layer, DRC) yang belum dimiliki proyek ini (lihat doc 06 §6.2).
   - Bill of Materials (BOM) otomatis dengan estimasi harga real-time berbasis marketplace Indonesia (Tokopedia / Shopee).
 - **Physical Sim-to-Real Blueprint (< Rp 300.000)**:
   - Panduan perangkat keras nyata menggunakan ESP32-WROOM / ESP32-CAM + servo mikro SG90 / MG996R.
@@ -100,6 +108,8 @@ Bagi mahasiswa, pelajar SMK, dan insinyur perintis dari kalangan menengah ke baw
    - Penanganan singularitas harus mulus menggunakan DLS tanpa ledakan kecepatan sendi (*no wild joint flipping*).
 4. **Portabilitas & Aksesibilitas**:
    - Tidak memerlukan instalasi software lokal (Zero Local Install); dapat diakses 100% via peramban modern (Chrome, Edge, Firefox, Safari) yang mendukung WebGL 2.0 / WebGPU dan WebAssembly.
+5. **Jam Simulasi Deterministik (ditambahkan v1.1 — prasyarat M0)**:
+   - Satu sim clock fixed-timestep 5 ms di worker; `millis()`/`micros()` dan `delay()` berbasis sim-time, bukan `performance.now()`. Waktu berhenti saat simulasi dijeda. Tanpa determinisme, metrik Sim-to-Real Parity (#6.3) tidak dapat diverifikasi.
 
 ---
 
@@ -107,4 +117,4 @@ Bagi mahasiswa, pelajar SMK, dan insinyur perintis dari kalangan menengah ke baw
 
 1. **User Empowerment**: Pengguna dapat merancang, mensimulasikan, dan memprogram lengan robot 6-DOF lengkap dengan kendali IK dalam waktu $< 15$ menit sejak membuka browser.
 2. **Cost Reduction**: Mengurangi biaya barrier-to-entry riset Physical AI dari Rp 15.000.000 (biaya Jetson + robot fisik komersial) menjadi **Rp 0** (simulasi penuh) atau **< Rp 300.000** (versi fisik mikrokontroler kerakyatan).
-3. **Sim-to-Real Parity**: Kode kontrol gerak dan trajectory yang diuji pada simulator virtual dapat diekspor langsung ke mikrokontroler fisik tanpa perubahan arsitektur logika.
+3. **Sim-to-Real Parity**: Kode kontrol gerak dan trajectory yang diuji pada simulator virtual dapat diekspor langsung ke mikrokontroler fisik tanpa perubahan arsitektur logika — **dengan syarat** kode ditulis di atas V-HAL (API publik) bukan API internal simulator, dan sim clock deterministik aktif (NFR #5).

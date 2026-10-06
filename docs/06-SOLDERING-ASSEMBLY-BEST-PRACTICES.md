@@ -2,7 +2,7 @@
 ## Pedoman Perakitan Perangkat Keras Nyata dan Spesifikasi Fitur Virtual Soldering
 
 - **Kode Proyek**: `TridiArduSim-PhysicalAI`
-- **Versi Dokumen**: 1.0.0
+- **Versi Dokumen**: 1.1.0 (revisi 4 Oktober 2026 — label model pedagogis & penundaan Gerber/STEP)
 - **Status**: Disetujui untuk Standar Perakitan & Fitur Simulator
 - **Terkait dengan**: [01-PRD-PHYSICAL-AI-ROBOTICS.md](file:///Users/user/Projects/simulate/docs/01-PRD-PHYSICAL-AI-ROBOTICS.md), [05-DEMOCRATIZED-PHYSICAL-AI-FRAMEWORK.md](file:///Users/user/Projects/simulate/docs/05-DEMOCRATIZED-PHYSICAL-AI-FRAMEWORK.md)
 
@@ -97,7 +97,11 @@ $$
 
 ## 5. Fitur Baru TridiArduSim: Virtual Soldering & Assembly Simulator
 
-Untuk mempersiapkan pengguna sebelum memegang solder panas sungguhan, simulator menyediakan fitur interaktif baru:
+Untuk mempersiapkan pengguna sebelum memegang solder panas sungguhan, simulator menyediakan fitur interaktif baru.
+
+> **Sifat model (v1.1)**: persamaan `Q = k·A·(T_tip − T_pad)/d` + ambang durasi (1.5 s / 3.5 s / 6.0 s) adalah **model pedagogis** — heuristik aturan-minta untuk mengajarkan urutan, durasi, dan kesalahan umum; **bukan** solusi PDE difusi panas. Jangan dipasarkan sebagai simulasi termal fisika-akurat atau prediktor suhu absolut.
+
+> **Status kode (5 Oktober 2026):** mode *Virtual Soldering Workbench* tersedia dari menu Tools. Fixture 3D memiliki empat pad dengan pitch 2.54 mm (skala adegan 1 unit ≈ 5 mm); hover memilih target mata solder, tombol tahan memanaskan pad, dan pengguna dapat memberi timah. Alloy Sn63/Pb37 (183 °C) dan SAC305 (219 °C), slider suhu ujung, kapasitas termal pad sinyal/ground-plane, status cold/good/excess-heat/overheated, serta peringatan bridge pad bersebelahan sudah tersedia. Bead dirender sebagai geometri prosedural sederhana, belum vertex-shader deformation; bridge hanya dideteksi dan diberi peringatan di fixture latihan, belum mengubah netlist rangkaian. Unit test memverifikasi kontras pemanasan signal/ground, klasifikasi mutu, dan bridge. Nilai suhu tetap keluaran heuristik edukasi, bukan prediksi fisik.
 
 ```mermaid
 flowchart LR
@@ -121,6 +125,7 @@ flowchart LR
 Simulator tidak hanya berhenti pada visualisasi layar, tetapi menyediakan jembatan langsung ke pabrikasi nyata:
 
 ### 6.1 Ekspor Model Mekanik 3D (STL / STEP Siap Cetak FDM)
+> **Scope v1.1**: **STL feasible** — ekspor mesh three.js dengan kompensasi toleransi di bawah. **STEP ditunda** — three.js tidak menghasilkan geometri parametrik B-Rep; STEP membutuhkan pipeline CAD terpisah, bukan fitur yang bisa ditambahkan ke scene graph existing.
 - **Kompensasi Toleransi Cetak 3D**:
   - Diameter lubang sekrup M3 diekspor sebesar **$3.3\text{ mm}$** (kompensasi penyusutan material plastik PLA/PETG sebesar $+0.3\text{ mm}$).
   - Lubang untuk **Heat-Set Brass Threaded Insert M3** diekspor dengan diameter presisi **$4.2\text{ mm}$** dan kedalaman **$5.0\text{ mm}$**.
@@ -128,7 +133,9 @@ Simulator tidak hanya berhenti pada visualisasi layar, tetapi menyediakan jembat
 - Pengguna cukup menekan tombol *"Ekspor STL Robot"* untuk mendapatkan file siap potong (*slicing*) di Ultimaker Cura atau PrusaSlicer.
 
 ### 6.2 Ekspor Skematik & File Manufaktur PCB (Gerber Package)
-- Konversi rangkaian breadboard virtual menjadi **Gerber Format RS-274X**:
+> **Status v1.1: DITUNDA.** Konversi breadboard→Gerber membutuhkan **engine layout PCB** (penempatan pad, rute jalur, alokasi layer, DRC) — proyek EDA tersendiri yang tidak dimiliki proyek ini. Yang tersedia di P2: **ekspor netlist + BOM** sebagai input manual ke KiCad, dan/atau template perfboard/PCB tetap per-model-robot. Klaim v1.0 "langsung diunggah ke JLCPCB" ditarik sampai layout engine tersedia.
+
+- *(Konsep awal, sebagai referensi target jangka panjang.)* Konversi rangkaian breadboard virtual menjadi **Gerber Format RS-274X**:
   - Lapisan Tembaga Atas/Bawah (`.GTL`, `.GBL`).
   - Lapisan Solder Mask (`.GTS`, `.GBS`).
   - Lapisan Silk Screen Logo & Label Pin (`.GTO`, `.GBO`).

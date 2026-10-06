@@ -2,7 +2,7 @@
 ## Menembus Batasan Biaya Hardware (NVIDIA Jetson & Raspberry Pi) di Indonesia
 
 - **Kode Proyek**: `TridiArduSim-PhysicalAI`
-- **Versi Dokumen**: 1.0.0
+- **Versi Dokumen**: 1.1.0 (revisi 4 Oktober 2026 — koreksi klaim latensi & deklarasi scope V-SBC)
 - **Status**: Disetujui untuk Pedoman Demokratisasi Hardware
 - **Terkait dengan**: [01-PRD-PHYSICAL-AI-ROBOTICS.md](file:///Users/user/Projects/simulate/docs/01-PRD-PHYSICAL-AI-ROBOTICS.md), [04-SPECS-ADVANCED-ELECTRONICS-EMULATION.md](file:///Users/user/Projects/simulate/docs/04-SPECS-ADVANCED-ELECTRONICS-EMULATION.md)
 
@@ -38,7 +38,7 @@ flowchart TD
 
     subgraph Pilar2["Pilar 2: Komputasi AI Hybrid (Free Cloud GPU Offload)"]
         BrowserSim["Simulator 3D Ringan (Laptop Biasa / Celeron)"]
-        Tunnel["Terowongan Data WebRTC / WebSocket (< 35ms)"]
+        Tunnel["Offload Async 5-10 Hz via WebSocket (bukan closed-loop)"]
         Colab["Google Colab / Kaggle Free GPU (Tesla T4 16GB)"]
         FoundationAI["Model Besar: YOLOv11, Diffusion Policy, ACT"]
         ZeroCost2["Biaya: Rp 0 (Memanfaatkan Cloud Gratis)"]
@@ -66,7 +66,8 @@ Daripada memaksa pengguna menginstal OS Linux di partisi komputer atau membeli p
 Pengguna menulis kode dalam editor Monaco browser dengan sintaksis Python persis seperti yang berjalan di Jetson Nano:
 
 ```python
-# Script yang ditulis pengguna di TridiArduSim (Sama persis dengan Jetson asli!)
+# Script yang ditulis pengguna di TridiArduSim (subset API V-SBC;
+# kode yang hanya memakai API subset ini berjalan tanpa perubahan di Jetson)
 import cv2
 import numpy as np
 import Jetson.GPIO as GPIO
@@ -107,6 +108,10 @@ while True:
 - `cv2.VideoCapture(0)`: Mengambil frame buffer langsung dari `THREE.WebGLRenderTarget` kamera simulator.
 - `Jetson.GPIO`: Menulis sinyal ke register pin V-HAL di Worker Sirkuit, yang kemudian menggerakkan geometri servo 3D di viewport secara sinkron!
 
+> **Batas scope V-SBC (v1.1)**: ini **subset**, bukan OS Linux virtual. **Didukung**: runtime Python (Pyodide), `numpy`, `cv2` dari wheel `opencv-python` WASM Pyodide, `Jetson.GPIO` (shim ke V-HAL), `cv2.VideoCapture(0)` (framebuffer RGB-D QVGA/VGA, target sampling maksimal 20 Hz ke worker). Implementasi menggunakan wheel Python OpenCV yang dikompilasi untuk Pyodide agar kode dapat memanggil `cv2` secara langsung; ini menggantikan rencana jembatan `opencv.js`. Runtime core Pyodide disajikan lokal, sementara wheel NumPy/OpenCV pertama kali diunduh dari CDN jsDelivr yang versinya dipatok bersama runtime. **Tidak didukung**: `rclpy`/ROS 2, filesystem Linux, threading OS, `GPIO.BOARD`, V4L2 atau driver perangkat. Kode yang hanya memakai subset API ini ditujukan untuk mudah dipindahkan ke Jetson/Raspberry Pi fisik; parity kode dan hardware belum divalidasi.
+
+> **Status implementasi (5 Oktober 2026):** editor menerima file `.py` dan memilih bahasa Python; tombol Run menjalankan kode pada worker Pyodide terpisah dan worker sirkuit memberi pin Uno/ESP32 sebagai V-HAL. Shim `Jetson.GPIO` mendukung BCM, pin input/output, pull-up, PWM, cleanup; `cv2.VideoCapture(0)` mengubah frame RGBA terbaru menjadi BGR top-left untuk `cv2`. `for`/`while` dan `time.sleep()` kooperatif sehingga pause/resume bekerja; stop mengakhiri worker. Worker tidak membuka jaringan sketch. Runtime loader/core/stdlib lokal; wheel NumPy/OpenCV tetap diambil dari CDN pada first run. Async AI Gateway awal mengirim frame dan joint terpilih 5/10 Hz melalui WebSocket dan menerapkan action chunk terbatas pada sim-time; notebook Colab starter memakai hold policy dan meminta token ngrok via prompt tersembunyi. Panel ONNX lokal menjalankan model klasifikasi RGB Float32 NCHW/NHWC menggunakan WebGPU/fallback WASM, dengan pilihan kamera, dimensi dinamis, normalisasi unit/ImageNet dan daftar skor kelas. `npm test` lulus **93 checks**, termasuk eksekusi Pyodide lokal/cooperative yield, validasi action chunk/URL dan preprocessing tensor ONNX. TypeScript, lint terarah dan production build Webpack lulus. Node sandbox tidak dapat mengambil wheel CDN, sehingga OpenCV import, kamera/GPIO browser, inferensi ONNX browser dan koneksi gateway/cloud belum tervalidasi end-to-end. Belum ada filesystem Linux, GPIO pin-numbering BOARD, V4L2, ROS 2, deteksi objek/preprocessing khusus model, atau inference model cloud.
+
 ---
 
 ## 4. Pilar 2: Komputasi AI Hybrid (Free Cloud GPU Offloading)
@@ -121,10 +126,14 @@ Model Physical AI generasi terkini (misal: **Action Chunking with Transformers (
    - Menerima gambar dari browser.
    - Menjalankan model AI canggih (PyTorch, TensorRT, HuggingFace transformers).
    - Menghasilkan vektor aksi kendali end-effector atau kecepatan motor ($v_x, \omega$).
-5. **Eksekusi Fisika**: Browser menerima aksi kendali dengan latensi round-trip $< 35\text{ ms}$, lalu mengerakkan sendi robot di kanvas 3D.
+5. **Eksekusi Fisika (koreksi v1.1 — bukan closed-loop)**: Browser menerima aksi kendali lalu mengerakkan sendi robot di kanvas 3D. Round-trip browser↔Colab realistis **60–150 ms** (bukan <35 ms), dan free tier Colab memiliki idle timeout (~9 jam) serta endpoint yang tidak always-on. Skema yang didukung: **async offload 5–10 Hz** — cloud menghasilkan *action chunk* (target joint / trajectory) yang dieksekusi browser secara lokal di antara dua inferensi. Closed-loop real-time membutuhkan endpoint berbayar dan **bukan** target produk ini.
 
 ### 4.2 Template 1-Klik Google Colab
-Platform menyediakan tombol *"Buka di Google Colab"*. Pengguna cukup menekan tombol tersebut, menjalankan satu sel Python di Colab yang menginisialisasi tunnel aman, dan memasukkan URL tunnel ke simulator. **Tanpa biaya sepeser pun!**
+Panel Async AI Gateway menyediakan tautan untuk membuka Colab, unduhan notebook pemula, serta field URL WebSocket hasil tunnel. Notebook di `frontend/public/ai-gateway/colab_starter.ipynb` memasang `websockets`, `pyngrok`, dan OpenCV, meminta token ngrok melalui prompt tersembunyi, lalu membuka server pada port 8765. **Pengguna harus mengunduh dan mengunggah notebook ke Colab**; tautan buka Colab belum memuat notebook otomatis dan Kaggle belum disediakan.
+
+Protocol v1 mengirim pesan `hello` saat tersambung. Pada 5 atau 10 Hz, browser mengirim objek `camera_frame` berisi sequence, simulation timestamp, ID kamera, JPEG Base64 QVGA maksimum 320×240, ID robot dan pose joint terpilih dalam radian. Server membalas `action_chunk` dengan sequence monotonik, `validForMs` dan daftar `{robotId, jointIndex, targetRad}`. Klien menerima hanya robot terpilih, mengabaikan sequence lama, membatasi payload hingga 16 KB, clamp posisi terhadap joint limit dan menginterpolasi target sepanjang 50–2000 ms simulation time. Pause membekukan gerak; stop dan disconnect menghapus chunk yang tertunda.
+
+Notebook starter mengembalikan pose joint saat ini (hold policy) sebagai contoh koneksi aman, bukan model vision/control. Pengguna mengganti `infer_action` dengan inferensi sendiri. Waktu round-trip 60–150 ms hanyalah estimasi pada dokumen; latency cloud/tunnel belum diukur. Remote URL harus `wss://` dan dipercaya pengguna. Implementasi saat ini belum punya domain allow-list, autentikasi protokol, WebRTC, inference model, atau hasil browser/Colab end-to-end.
 
 ---
 

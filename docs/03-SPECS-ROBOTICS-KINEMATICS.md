@@ -2,7 +2,7 @@
 ## Penerapan Landasan Teori Lynch & Park (Modern Robotics) pada Web 3D
 
 - **Kode Proyek**: `TridiArduSim-PhysicalAI`
-- **Versi Dokumen**: 1.0.0
+- **Versi Dokumen**: 1.1.0 (revisi 4 Oktober 2026 — tambah kriteria golden test & urutan pembangunan; rumus tidak berubah)
 - **Rujukan Teori**: Kevin M. Lynch & Frank C. Park, *Modern Robotics: Mechanics, Planning, and Control*, Cambridge University Press.
 - **Terkait dengan**: [01-PRD-PHYSICAL-AI-ROBOTICS.md](file:///Users/user/Projects/simulate/docs/01-PRD-PHYSICAL-AI-ROBOTICS.md), [02-ARCHITECTURE-SYSTEM-DESIGN.md](file:///Users/user/Projects/simulate/docs/02-ARCHITECTURE-SYSTEM-DESIGN.md)
 
@@ -144,6 +144,8 @@ function solveIK_DLS(
 }
 ```
 
+> **Kriteria validasi (ditambahkan v1.1):** exp/log SE(3), PoE FK, dan Jacobian dibandingkan pada 10⁴ konfigurasi deterministik dengan reference Lynch & Park (*ModernRoboticsPython*); batas error posisi <1e-6 m dan orientasi <1e-4 rad. DLS dibandingkan pada 250 target pose reachable yang dibuat dengan `FKinSpace`, diwajibkan sukses bersama `IKinSpace`, dan hasil pose diperiksa memakai `FKinSpace`; position-only DLS diperiksa terhadap target Cartesian yang sama dengan seed dekat konfigurasi reachable, sesuai pola warm-start interaktif. Kedua DLS harus kurang dari 5 ms per sampel pada benchmark host uji. FABRIK tidak tersedia di ModernRoboticsPython, sehingga diuji dengan 200 rantai/target reachable untuk root tetap, panjang tiap link tetap, dan endpoint error <1e-3 m, ditambah kasus target tak terjangkau. Hasil saat ini dicatat di `docs/RENCANA.md`. Catatan desain: clamping joint-limit di dalam loop iterasi masih aproksimasi edukasi; damping adaptif di dekat batas dan solusi null-space dicatat sebagai perbaikan P2.
+
 ### 3.3 Redundansi Kinematika & Proyeksi Null-Space (Manipulator 7-DOF)
 Untuk lengan dengan derajat kebebasan berlebih ($n > 6$, misal Franka Emika Panda atau bahu 3-DOF manusia), solusi DLS dilengkapi vektor kecepatan sekunder $\dot{\theta}_{null}$ yang diproyeksikan ke ruang nol (*null space*) Jacobian tanpa mengganggu gerak end-effector:
 
@@ -196,6 +198,8 @@ di mana $s(t)$ mengikuti fungsi percepatan trapesium (LSPB).
 ---
 
 ## 5. Model Robot Bawaan Platform (Catalog Specification)
+
+> **Urutan pembangunan (v1.1)**: **EduArm-3DOF dibangun pertama**, memakai skema **URDF-lite handwritten** (JSON internal: joint axis, origin, mass/CoM/inertia per link). **Parser URDF/XML penuh ditunda ke P2** — tidak diperlukan untuk membuktikan pipeline kinematika, dan adalah scope terpisah. AeroArm-6DOF menyusul setelah DLS stabil pada 3-DOF. **DeltaBot-3DOF (kinematika paralel / closed-chain) di luar pipeline DLS articulated** — membutuhkan solver constraint berbeda; perlakukan sebagai proyek terpisah, bukan bagian roadmap utama.
 
 | Model Robot | Konfigurasi Kinematika | Aplikasi Utama | Beban / Torsi Maksimum |
 |---|---|---|---|
