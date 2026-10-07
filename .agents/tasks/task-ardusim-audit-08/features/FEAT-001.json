@@ -1,0 +1,36 @@
+{
+  "id": "FEAT-001",
+  "type": "docs",
+  "description": "Sprint 0 + Sprint 1a/1b/1d: Keputusan strategis di RENCANA.md, rewrite README frontend, fidelity labels di ComponentRegistry + UI, sembunyikan non-P0 di balik env flag, update INVENTARIS.md kolom fidelity, bundle analyzer baseline. Tidak ada perubahan runtime logic — pure docs + konfigurasi + tipe data baru.",
+  "status": "pending",
+  "steps": [
+    "S0-1/S0-2: Edit docs/RENCANA.md — HAPUS status tabel lama (Tahap 1-6) dan GANTI dengan satu tabel ringkas status aktual. Tambah seksi baru '## Keputusan Strategis (Sprint 0)' tepat setelah header: pilih Opsi A (fokus alat ajar breadboard/blink polished, bekukan robotik/AI sebagai eksperimental), tulis 1 paragraf keputusan + alasan + apa yang berhenti dikerjakan. Catat juga: Opsi C (embed wokwi-arduino npm) feasible secara lisensi tapi belum dipilih karena adopsi model komponen orang lain. Acceptance: RENCANA.md tidak punya tabel lama §1-6; ada seksi 'Keputusan Strategis' yang bisa dibaca onboarding kontributor baru.",
+    "S0-3: Verifikasi lisensi wokwi-arduino di npm registry — cek package.json atau npmjs.com untuk lisensi, catat di docs/RENCANA.md sebagai catatan kaki. Jangan install — hanya riset dan tulis 2-3 baris kesimpulan.",
+    "S1-1/S1-2: Rewrite frontend/README.md dari nol. Struktur wajib: ## What is This, ## Prerequisites (Node 20+, Go opsional), ## Quick Start (npm run dev -- tanpa backend, ATAU dengan backend Go :8080), ## Running Tests (npm test → 95 checks; npx tsc --noEmit; npm run test:kinematics-reference opsional), ## Known Limitations (mobile warning by design; bukan Wokwi AVR-accurate; tidak ada ISR/SPI/UART timing; bundle berat karena pyodide+onnx+rapier), ## Architecture Overview (link ke docs/INVENTARIS.md + docs/08-AUDIT). Hapus SEMUA baris template create-next-app. Acceptance: zero lines dari template; ada Prerequisites, Quick Start, Testing, Known Limitations.",
+    "S1-3: Di frontend/src/lib/components/ComponentRegistry.ts, tambah field `fidelity: 'ideal' | 'quasi-static' | 'datasheet'` dan `experimental: boolean` ke interface ComponentRegistration (sekitar baris 25-35). Update class Registry method getAll() tidak perlu diubah. Tandai setiap registrasi yang sudah ada dengan nilai fidelity yang tepat: arduino_uno/breadboard/led_red/resistor_220/push_button/potentiometer/jumper_* = 'datasheet', dht11/hcsr04/servo_sg90 = 'quasi-static', semua komponen lain (robotics, power, sensors, motor drivers, ESP32, PLC, OLED, LCD) = 'ideal'. Set experimental:true untuk semua tipe di luar 10 P0.",
+    "S1-4: Di frontend/src/app/page.tsx bagian library panel (sekitar baris 625-680 — component-card rendering), tambah badge fidelity di bawah nama komponen di setiap component-card. Badge harus: teks 'Ideal' (amber), 'Kuasi-Statik' (blue), atau 'Datasheet' (emerald); implementasi sebagai <span> kecil dengan className tailwind; tambah title tooltip dengan penjelasan singkat. Referensi: c.fidelity dan c.experimental dari ComponentRegistration.",
+    "S1-5: Di frontend/src/app/page.tsx, filter library list (sekitar baris 635-640) untuk menyembunyikan komponen dengan experimental:true kecuali process.env.NEXT_PUBLIC_SHOW_EXPERIMENTAL === 'true'. Pattern: const showExp = process.env.NEXT_PUBLIC_SHOW_EXPERIMENTAL === 'true'; filter tambahkan && (!c.experimental || showExp). Tambah .env.example entry: NEXT_PUBLIC_SHOW_EXPERIMENTAL=false dengan komentar penjelasan.",
+    "S1-6: Di docs/INVENTARIS.md, pada tabel audit perupdate (bagian '## Audit Perupdate'), tambah kolom 'Tingkat Fidelity' setelah kolom 'Tipe'. Isi sesuai fidelity yang ditetapkan di S1-3. Tidak perlu rewrite — hanya tambah kolom.",
+    "S1-10/S1-11: Install @next/bundle-analyzer sebagai devDependency di frontend/package.json (versi exact: 16.2.6 sesuai Next.js version). Edit frontend/next.config.ts untuk wrap config dengan withBundleAnalyzer saat ANALYZE=true. Tambah script 'analyze': 'ANALYZE=true next build -- --webpack' di package.json scripts.",
+    "S1-12/S1-13: Jalankan `npm run analyze` dari frontend/. Catat angka bundle di docs/BUNDLE-BASELINE.md (buat file baru). Format: tabel Chunk | Size (gzipped) | Size (raw), plus kolom Top 5 kontributor terbesar dan catatan 'Target Sprint 3: -20% dari first-load JS'. Jika npm run analyze gagal karena sandbox/env, catat ukuran manual dari `npm run build -- --webpack` output dan tulis estimasi di BUNDLE-BASELINE.md dengan catatan 'Analyzer output tidak tersedia di sandbox — ukuran dari build log'."
+  ],
+  "acceptance_criteria": [
+    "docs/RENCANA.md memiliki seksi 'Keputusan Strategis' dengan keputusan Opsi A yang bisa dibaca onboarding kontributor — tidak ada tabel Tahap 1-6 lama",
+    "frontend/README.md tidak ada satu baris template create-next-app; memiliki seksi Prerequisites, Quick Start, Testing, Known Limitations",
+    "frontend/src/lib/components/ComponentRegistry.ts: interface ComponentRegistration memiliki field `fidelity` dan `experimental`; setiap komponen sudah diberi nilai",
+    "Library panel di UI menampilkan badge fidelity (Ideal/Kuasi-Statik/Datasheet) pada setiap component-card",
+    "10 tipe P0 terlihat by default; komponen non-P0 tersembunyi tanpa NEXT_PUBLIC_SHOW_EXPERIMENTAL=true",
+    "docs/INVENTARIS.md: tabel memiliki kolom Tingkat Fidelity",
+    "@next/bundle-analyzer tersedia di devDependencies; script npm run analyze berfungsi",
+    "docs/BUNDLE-BASELINE.md ter-commit dengan angka konkret (atau estimasi berlabel) + target Sprint 3"
+  ],
+  "verification": [
+    "cd frontend && npm test   # harus tetap '95 checks passed' — tidak ada perubahan runtime",
+    "cd frontend && npx tsc --noEmit   # exit 0",
+    "cd frontend && npm run build -- --webpack   # build berhasil",
+    "grep -c 'fidelity' frontend/src/lib/components/ComponentRegistry.ts   # harus > 0 (sanity check tipe ada)",
+    "cat docs/BUNDLE-BASELINE.md   # file exist dan punya angka"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

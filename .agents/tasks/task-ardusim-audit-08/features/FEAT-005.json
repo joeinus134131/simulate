@@ -1,0 +1,43 @@
+{
+  "id": "FEAT-005",
+  "type": "perf",
+  "description": "Sprint 3e/3f + D1/D2/D3: Bundle lazy-loading (pyodide, onnx, mediapipe, rapier, monaco), route split (/lab), validasi akhir Sprint 3, dan dokumentasi teknis V-HAL. FEAT ini bergantung pada FEAT-004 (split sudah selesai). Independen dari FEAT-001/002/003 kecuali baseline bundle dari FEAT-001.",
+  "status": "pending",
+  "steps": [
+    "S3-25 (lazy pyodide): Di frontend/src/lib/simulation/PythonInterpreter.ts (atau python.worker.ts), cari import pyodide. Ubah menjadi dynamic import: const { loadPyodide } = await import('pyodide'). Tambah loading state yang di-expose ke UI (misal: PythonInterpreter emit 'python:loading' event atau return Promise<void> resolve setelah load). Di CodeEditorPanel (atau CodeEditorShell setelah FEAT-004), tampilkan spinner 'Loading Python...' saat loading. Hapus pyodide dari predev script jika sudah tidak dibutuhkan di bundle awal — HATI-HATI: predev masih diperlukan untuk copy assets ke public/, tapi import bundle tidak harus eager.",
+    "S3-26 (lazy onnx): Di OnnxInferencePanel (setelah FEAT-004 sudah conditional mount), pastikan onnxruntime-web diimport dengan dynamic import HANYA saat panel aktif. Cek: frontend/src/lib/ai/ atau OnnxInferencePanel.tsx — temukan import 'onnxruntime-web'. Ubah ke: const ort = await import('onnxruntime-web'). Tambah loading state di panel.",
+    "S3-27 (lazy mediapipe): Cari import @mediapipe/tasks-vision di seluruh frontend/src/. Ubah ke dynamic import saat fitur diaktifkan. Jika belum ada usage yang visible, cukup pastikan tidak ada import di app initialization path.",
+    "S3-28 (lazy rapier): Cari import @dimforge/rapier3d-compat di frontend/src/. Kemungkinan di simulation.worker.ts atau physics worker terpisah. Jika sudah di worker terpisah (dari RENCANA.md: 'worker physics terpisah'), verifikasi bahwa worker tidak diload saat tidak ada physics body. Jika ada eager import di main bundle, ubah ke dynamic import dalam worker atau kondisional load.",
+    "S3-29 (lazy monaco): MonacoWrapper.tsx (dibuat di FEAT-004) sudah menggunakan dynamic import dari next/dynamic. Verifikasi: (a) import '@monaco-editor/react' hanya ada via dynamic import, bukan static import di atas file. (b) Pastikan MonacoWrapper.tsx adalah satu-satunya tempat monaco diimport. Jika ada static import di CodeEditorPanel.tsx sebelum FEAT-004, ini sudah terselesaikan — hanya verifikasi.",
+    "S3-30 (route split /lab): Buat frontend/src/app/lab/ sebagai route baru di Next.js App Router. (a) Buat frontend/src/app/lab/page.tsx yang berisi workspace FULL dengan semua fitur robotik/AI (EduArm, AeroArm, RoverBot, RGB-D, LiDAR, IMU, ONNX, Python V-SBC, AI Gateway). (b) Route `/` (page.tsx / WorkspacePage.tsx setelah FEAT-004) difokuskan ke 10 tipe P0 — tidak load pyodide/onnx/rapier/mediapipe di initial bundle. Cara implementasi: di WorkspacePage, filter ComponentRegistry hanya tampilkan P0 components (experimental:false), dan lazy panels hanya untuk P0. Di /lab page, tampilkan semua komponen termasuk experimental. CATATAN: ini adalah route split UI, bukan split logic — simulation.worker tetap satu, tapi dynamic imports berbeda per route.",
+    "S3-31/S3-32/S3-33/S3-34/S3-35/S3-36/S3-37 (validasi akhir Sprint 3): Jalankan semua validation gate: (1) npx tsc --noEmit → exit 0; (2) npx eslint --max-warnings 0 → exit 0; (3) npm test → 95+ checks hijau; (4) npm run test:unit → vitest hijau; (5) npm run test:e2e → 5 E2E hijau (atau skip jika tidak ada browser di env); (6) npm run build -- --webpack → sukses; (7) npm run analyze → catat bundle size baru di docs/BUNDLE-BASELINE.md bagian 'After Sprint 3'. Hitung delta vs baseline. Target: first-load JS/WASM turun ≥20% (dari BUNDLE-BASELINE.md Sprint 1).",
+    "S3-38 (git status clean): Pastikan tidak ada build artifacts ter-track. Check: git status di frontend/ tidak menampilkan .next/, public/pyodide/, public/onnxruntime-web/, node_modules/. Jika ada file untracked yang tidak perlu, tambahkan ke .gitignore atau hapus. Khusus: frontend/https: folder (0 byte untracked dari §10.2 audit) — tambahkan `https:` ke .gitignore.",
+    "D1: Buat docs ASUMSI.md untuk masing-masing V-HAL model. Buat direktori frontend/src/lib/simulation/vhal/docs/ atau cukup di docs/vhal/. Buat 7 file: a4988.ASUMSI.md, l298n.ASUMSI.md, dc_motor.ASUMSI.md, battery.ASUMSI.md, charger_thermal.ASUMSI.md, dc_dc.ASUMSI.md, ssd1306.ASUMSI.md. Format setiap file (5 baris): (1) Rumus utama, (2) Parameter default, (3) Sumber datasheet (link atau 'N/A — asumsi edukasional'), (4) Yang TIDAK dimodelkan, (5) Validasi status. Isi berdasarkan RENCANA.md addendum (sudah ada detail untuk setiap komponen).",
+    "D2: Tambah link dari component-card di library panel ke definisi di docs/INVENTARIS.md. Implementasi: di LibraryPanel.tsx (dari FEAT-004), tambah <a href='/docs/INVENTARIS' target='_blank'> atau tooltip yang menyebut 'Lihat tingkat fidelity di INVENTARIS.md'. Atau lebih praktis: tambah data-fidelity-detail ke badge fidelity yang mengarah ke anchor di INVENTARIS.md. Minimal: pastikan badge fidelity dari S1-4 memiliki tooltip yang menjelaskan artinya.",
+    "D3: Tambah seksi 'Batas Simulasi' di UI. Lokasi: di Help modal (page.tsx:546-596, atau WorkspacePage.tsx setelah FEAT-004), tambah panel/tab 'Batas Simulator' yang menampilkan list hal yang TIDAK dimodelkan: integer division C++, overflow C++, cycle-accurate ISR, SPI, UART timing, switching PWM, winding R-L cycle, AVR instruction set. Format: <ul> dengan items. Ini memenuhi D3 dan juga mengisi acceptance S2-23 (dokumentasikan mode operasi)."
+  ],
+  "acceptance_criteria": [
+    "pyodide tidak ada di eager import path — hanya loaded saat Python execution diminta",
+    "onnxruntime-web tidak ada di eager import path — hanya loaded saat OnnxInferencePanel aktif",
+    "Route /lab exist di frontend/src/app/lab/page.tsx",
+    "Route / (WorkspacePage) hanya load 10 tipe P0 tanpa eager loading WASM berat",
+    "docs/BUNDLE-BASELINE.md punya seksi 'After Sprint 3' dengan delta vs baseline Sprint 1",
+    "git status frontend/ bersih — tidak ada build artifacts",
+    "frontend/https: ada di .gitignore",
+    "7 file ASUMSI.md exist (lokasi: frontend/src/lib/simulation/vhal/docs/ atau docs/vhal/)",
+    "Help modal punya seksi 'Batas Simulator' yang list hal yang tidak dimodelkan",
+    "`npm test` 95+ checks, `npx tsc --noEmit` exit 0, `npm run build -- --webpack` berhasil"
+  ],
+  "verification": [
+    "cd frontend && npm test   # 95+ checks passed",
+    "cd frontend && npm run test:unit   # vitest hijau",
+    "cd frontend && npx tsc --noEmit   # exit 0",
+    "cd frontend && npx eslint --max-warnings 0   # exit 0",
+    "cd frontend && npm run build -- --webpack   # berhasil",
+    "ls frontend/src/app/lab/page.tsx   # route /lab exist",
+    "cat docs/BUNDLE-BASELINE.md   # ada seksi After Sprint 3 dengan delta",
+    "cd frontend && git status   # tidak ada .next/ atau artifacts"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -1,0 +1,37 @@
+{
+  "id": "FEAT-003",
+  "type": "test",
+  "description": "Sprint 2a/2b/2c: Vitest untuk lib murni, Playwright E2E 5 alur wajib, fuzz ringan contract test. Semua masuk CI. run.cjs (95 checks) dipertahankan paralel.",
+  "status": "pending",
+  "steps": [
+    "S2-1/S2-2: Install vitest sebagai devDependency (latest stable, pinned exact version, cek npmjs.com). Buat frontend/vitest.config.ts: import { defineConfig } from 'vitest/config'; export default defineConfig({ test: { environment: 'node', include: ['src/**/*.test.ts', 'tests/unit/**/*.test.ts'], exclude: ['tests/run.cjs'] } }). Tambah script 'test:unit': 'vitest run' di package.json. Pastikan vitest.config.ts menggunakan TypeScript path alias sama seperti tsconfig (jika ada paths/baseUrl, copy ke resolve.alias di vitest config).",
+    "S2-3: Buat test files untuk modul lib murni. Lokasi: frontend/tests/unit/. Buat file-file berikut: (a) tests/unit/CircuitSolver.test.ts — import CircuitSolver dari path relatif; test: solve rangkaian LED+resistor 220Ω return voltage ~1.8V, solve open circuit return 0, solve short circuit tidak crash. (b) tests/unit/SimulationClock.test.ts — test: millis() mengikuti delay(), fixed step 5ms, pause membekukan clock. (c) tests/unit/SketchRuntime.test.ts — test: parse sketch sederhana, blink logic, validasi pin MISSING di fuzz (lihat S2-12). (d) tests/unit/kinematics.test.ts — import dari src/lib/robotics/kinematics.ts; test FK forward kinematics identity pose, round-trip exp/log SE(3) error < 1e-10. (e) tests/unit/vhal-pwm.test.ts — import dari src/lib/simulation/vhal/pwm.ts; test clampPwmResolution dan pwmSignal output range.",
+    "S2-4: Verifikasi run.cjs tetap berjalan paralel. Tidak ada perubahan ke tests/run.cjs. Cukup pastikan `npm test` dan `npm run test:unit` KEDUANYA ada di CI dan di README.",
+    "S2-5: Install @playwright/test sebagai devDependency (pinned). Buat frontend/playwright.config.ts: baseURL http://localhost:3000, testDir ./tests/e2e, use: { headless: true }. Tambah script 'test:e2e': 'playwright test' di package.json. Catatan: E2E butuh running dev server; di CI gunakan webServer option di playwright.config.ts: { command: 'npm run dev', url: 'http://localhost:3000', reuseExistingServer: !process.env.CI }.",
+    "S2-6 (E2E-1): Buat frontend/tests/e2e/blink.spec.ts. Test: (1) buka http://localhost:3000; (2) klik example 'Blink' dari sidebar; (3) klik tombol Run; (4) tunggu serial monitor menampilkan 'ON' atau 'OFF' dalam 10 detik. Selector yang kemungkinan benar: tombol Run = button[data-tour='run-button'], example Blink = sidebar button containing 'Blink', serial output = panel dengan kelas serial/terminal. Jika selector tidak pasti, gunakan getByRole + getByText sebagai fallback.",
+    "S2-7 (E2E-2): Buat atau tambah ke tests/e2e/wiring.spec.ts. Test: (1) buka http://localhost:3000; (2) coba wiring panel — pilih pin yang sama untuk from dan to (duplikat); (3) klik Connect; (4) verifikasi notice/toast muncul berisi 'duplikat' atau 'invalid' atau 'tidak valid'. Referensi: page.tsx baris ~763 — jika addWire return null/empty, setNotice(t.wiring.duplicateInvalid).",
+    "S2-8 (E2E-3): Buat atau tambah ke tests/e2e/save-load.spec.ts. Test roundtrip: (1) buka; (2) load example 'Blink'; (3) klik Save Local; (4) reload halaman; (5) klik Load Local; (6) verifikasi ada komponen di kanvas (component-card visible atau canvas tidak kosong). Gunakan localStorage injection via page.evaluate jika perlu.",
+    "S2-9 (E2E-4): Buat atau tambah ke tests/e2e/flash-panel.spec.ts. Test: (1) buka; (2) buka Code Editor (panel kanan bawah sudah visible); (3) cari tab Flash atau tombol Flash ke Hardware; (4) klik tanpa WebSerial device; (5) verifikasi tidak ada crash (halaman masih responsive) dan muncul pesan informatif tentang device. Jika Flash Panel ada di CodeEditorPanel.tsx, temukan selector yang tepat dari kode.",
+    "S2-10 (E2E-5): Buat tests/e2e/inspector.spec.ts. Test: (1) buka; (2) load example 'servo' atau tambah servo dari library; (3) klik servo untuk select; (4) verifikasi inspector panel terbuka dan menampilkan ActuatorJointPanel atau properti servo. Selector: right-inspector-panel aside.",
+    "S2-11: Update .github/workflows/ci.yml: tambah step `npx playwright install --with-deps chromium` sebelum run E2E, dan step `npm run test:e2e` setelah `npm run build -- --webpack`. Pastikan webServer di playwright.config.ts pakai `npm run build -- --webpack && npm start` untuk CI, atau `npm run dev` untuk local.",
+    "S2-12/S2-13/S2-14: Di tests/unit/SketchRuntime.test.ts (atau buat tests/unit/fuzz.test.ts terpisah), tambah fuzz ringan: (a) parseProject dengan input wire duplikat → tidak throw, return valid project; (b) parseProject dengan pin MISSING pada wire → tidak throw, wire diabaikan atau error message; (c) buildElectricalConnectivity dengan komponen tanpa pin → tidak crash; (d) validWire dengan componentId tidak dikenal → return false. Import dari src/lib/project/project.ts dan src/lib/simulation/electricalConnectivity.ts. Referensi dari run.cjs:592-606 untuk pola assert yang ada."
+  ],
+  "acceptance_criteria": [
+    "vitest terpasang; `npm run test:unit` hijau dengan minimal 10 test assertions",
+    "5 E2E test files ada di tests/e2e/; `npx playwright test` bisa dijalankan (skip jika server tidak ada di sandbox, tapi file exist)",
+    "Fuzz test untuk parseProject (pin MISSING, wire duplikat) dan validWire ada di test:unit",
+    "`npm test` tetap '95 checks passed' — run.cjs tidak diubah",
+    "`npx tsc --noEmit` tetap clean",
+    ".github/workflows/ci.yml diupdate dengan step playwright install dan test:e2e"
+  ],
+  "verification": [
+    "cd frontend && npm test   # 95 checks passed",
+    "cd frontend && npm run test:unit   # vitest hijau",
+    "cd frontend && npx tsc --noEmit   # exit 0",
+    "cd frontend && npm run build -- --webpack   # build berhasil",
+    "ls frontend/tests/e2e/*.spec.ts   # 5 file exist",
+    "cat .github/workflows/ci.yml | grep playwright   # playwright steps ada"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

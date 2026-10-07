@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-002",
+  "type": "chore",
+  "description": "Sprint 1c: CI GitHub Actions dari nol. Tidak ada .github/ di root atau submodule saat ini — greenfield pipeline. Frontend adalah git submodule di simulate/frontend; CI harus cd masuk ke sana.",
+  "status": "pending",
+  "steps": [
+    "S1-7/S1-8: Buat file /Users/user/Projects/simulate/.github/workflows/ci.yml (di root repo, BUKAN di frontend/). Konten: trigger on push/PR ke semua branch. Job 'ci' runs-on: ubuntu-latest. steps: (1) checkout dengan submodules:true recursive; (2) setup-node dengan node-version dari engines field di package.json atau '20'; (3) working-directory: frontend untuk semua langkah berikut; (4) npm ci; (5) npx tsc --noEmit; (6) npx eslint --max-warnings 0; (7) npm test (run.cjs → 95 checks); (8) npm run build -- --webpack (dengan env NEXT_PUBLIC_SHOW_EXPERIMENTAL=false). CATATAN: predev/prebuild copy scripts membutuhkan file WASM yang besar — set env SKIP_PYODIDE_COPY=true atau modifikasi copy scripts agar gracefully skip jika source tidak ada (cek apakah copy scripts sudah ada guard, jika tidak tambahkan). Jika copy scripts gagal di CI karena file tidak ada, wrap dalam `continue-on-error: true` atau tambahkan `if [ -d ... ] then copy` guard.",
+    "S1-9: Pastikan `next build` di CI pakai flag --webpack. Di package.json scripts, ubah 'build' dari 'next build' menjadi 'next build --webpack' ATAU tambah script 'build:ci': 'next build --webpack' dan gunakan itu di CI. Pilih opsi 'ubah build script' agar konsisten. Catatan dari RENCANA.md: 'Build default Turbopack gagal di sandbox saat child process mencoba membuka port' — ini alasan utama.",
+    "TAMBAHAN: Di .github/workflows/ci.yml, tambah step untuk cache npm: menggunakan actions/cache dengan key: ${{ hashFiles('frontend/package-lock.json') }}. Ini opsional tapi mempercepat CI. Tambah juga badge CI di frontend/README.md setelah langkah ini selesai.",
+    "Buat /Users/user/Projects/simulate/.github/workflows/ci.yml dengan format lengkap YAML valid. Verifikasi syntax YAML sebelum commit dengan: python3 -c 'import yaml, sys; yaml.safe_load(sys.stdin)' < .github/workflows/ci.yml"
+  ],
+  "acceptance_criteria": [
+    ".github/workflows/ci.yml exist di root repo (bukan di frontend/)",
+    "CI pipeline steps: checkout (submodules:true) → setup-node → npm ci → tsc --noEmit → eslint --max-warnings 0 → npm test → next build --webpack",
+    "npm run build (atau build:ci) menggunakan flag --webpack sehingga tidak gagal di sandbox",
+    "copy-pyodide/copy-onnx scripts tidak crash CI jika WASM source tidak ada (guard atau continue-on-error)",
+    "YAML syntax valid (tidak ada indentation error)"
+  ],
+  "verification": [
+    "python3 -c 'import yaml, sys; yaml.safe_load(open(\".github/workflows/ci.yml\"))' && echo 'YAML valid'",
+    "cd frontend && npm run build -- --webpack   # pastikan flag --webpack berhasil",
+    "cat .github/workflows/ci.yml   # review manual steps sudah lengkap"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

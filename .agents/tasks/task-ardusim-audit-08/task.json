@@ -1,0 +1,7 @@
+{
+  "task_id": "task-ardusim-audit-08",
+  "task_description": "Implementasi lengkap semua item dari dokumen audit 08-AUDIT-KRITIS-PEDAS-DAN-RENCANA-PERBAIKAN.md: Sprint 0 (keputusan strategis), Sprint 1 (guardrail & quick win: README, fidelity labels, CI, bundle baseline), Sprint 2 (test & UX: vitest, playwright E2E, fuzz, lazy inspector, shortcuts), Sprint 3 (split god-files: page.tsx/worker/store/CodeEditorPanel + bundle lazy-loading + route split), plus D1/D2/D3 dokumentasi teknis.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
+  "blocked_reason": null
+}
